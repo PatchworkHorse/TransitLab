@@ -28,6 +28,13 @@ func main() {
 
 func Run(cfg *CliArgs) error {
 
+	if dockerVersion, error := getDockerVersion(); error == nil {
+		fmt.Printf("Found Docker: %s\n", dockerVersion)
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", error)
+		os.Exit(1)
+	}
+
 	activeStateArgs := 0
 
 	for _, f := range []*bool{cfg.Start, cfg.Stop} {
@@ -55,13 +62,22 @@ func Run(cfg *CliArgs) error {
 	return nil
 }
 
+func getDockerVersion() (string, error) {
+	cmd := exec.Command("docker", "version", "--format", "{{.Client.Version}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get docker version: %w", err)
+	}
+	return string(output), nil
+}
+
 func handleList() {
 
 	ctx := context.Background()
 
 	options, err := cli.NewProjectOptions(
 		[]string{composeFile},
-		cli.WithWorkingDirectory("../"),
+		cli.WithWorkingDirectory("."),
 		cli.WithOsEnv,
 		cli.WithDotEnv,
 		cli.WithName("test"),
