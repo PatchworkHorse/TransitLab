@@ -1,0 +1,41 @@
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.event.base_ref == 'refs/heads/main'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+
+      - name: Build binary
+        working-directory: src
+        run: go build -o ../netemu .
+
+      - name: Package release
+        run: |
+          mkdir -p dist/netemu
+          cp netemu dist/netemu/
+          cp docker-compose.yml dist/netemu/
+          cp customer-templates.yml router-templates.yml dist/netemu/
+          cp AS-*.yml dist/netemu/
+          cp README.md dist/netemu/
+          cp -r customer-image frr-image server-image scripts dist/netemu/
+          tar -czf netemu-${{ github.ref_name }}-linux-amd64.tar.gz -C dist netemu
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: netemu-${{ github.ref_name }}-linux-amd64.tar.gz
