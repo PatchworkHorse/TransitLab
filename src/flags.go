@@ -10,6 +10,7 @@ type CliArgs struct {
 	Start  *bool
 	Stop   *bool
 	List   *bool
+	BgpSum *string
 }
 
 func GetValidListArgs() []string {
@@ -44,6 +45,7 @@ func SetupFlags() *CliArgs {
 	cfg.Start = flag.Bool("start", false, "Starts the default collection of routers and services")
 	cfg.Stop = flag.Bool("stop", false, "Stops all running services")
 	cfg.List = flag.Bool("list", false, "Lists all services in the compose file")
+	cfg.BgpSum = flag.String("bgpSummary", "", "Lists BGP summary information for a given router")
 
 	return cfg
 }
