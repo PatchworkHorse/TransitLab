@@ -1,22 +1,22 @@
 # StrataLink Telecom
 # AS-65222
-# 172.40.64.0/20 | 2001:db8:beef::/40 
+# 172.40.64.0/20 | 2001:db8:beef::/40
 
 # MHT lo: 172.40.64.0/28
 # MHT P2P: 172.40.64.16/27
 # Customers: 172.40.65.0/23
 
-networks: 
+networks:
   bh_slt-mht-bdr-01__slt-mht-cor-01:
     driver: ${NETWORK_DRIVER:-macvlan}
     internal: ${NETWORK_INTERNAL:-true}
-    labels: 
+    labels:
       type: "backhaul"
       notes: Internal link to SLT Core
 
 services:
   slt-mht-bdr-01:
-    extends: 
+    extends:
       file: router-templates.yml
       service: router-base
     profiles: ["as-65222", "slt-as", "all-isps"]
