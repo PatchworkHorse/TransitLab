@@ -1,0 +1,231 @@
+diff --git a/src/flags.go b/src/flags.go
+index a541095..7ba91b1 100644
+--- a/src/flags.go
++++ b/src/flags.go
+@@ -10,6 +10,7 @@ type CliArgs struct {
+ 	Start  *bool
+ 	Stop   *bool
+ 	List   *bool
++	BgpSum *string
+ }
+ 
+ func GetValidListArgs() []string {
+@@ -44,6 +45,7 @@ func SetupFlags() *CliArgs {
+ 	cfg.Start = flag.Bool("start", false, "Starts the default collection of routers and services")
+ 	cfg.Stop = flag.Bool("stop", false, "Stops all running services")
+ 	cfg.List = flag.Bool("list", false, "Lists all services in the compose file")
++	cfg.BgpSum = flag.String("bgpSummary", "", "Lists BGP summary information for a given router")
+ 
+ 	return cfg
+ }
+diff --git a/src/frr-interop-types.go b/src/frr-interop-types.go
+new file mode 100644
+index 0000000..d3be19c
+--- /dev/null
++++ b/src/frr-interop-types.go
+@@ -0,0 +1,17 @@
++package main
++
++type BGPSummary struct {
++	IPv4Unicast struct {
++		PeerCount int                `json:"peerCount"`
++		Peers     map[string]BGPPeer `json:"peers"`
++	} `json:"ipv4Unicast"`
++}
++
++type BGPPeer struct {
++	Hostname   string `json:"hostname,omitempty"`
++	RemoteAS   int    `json:"remoteAs"`
++	LocalAS    int    `json:"localAs"`
++	Version    int    `json:"version"`
++	PeerUptime string `json:"peerUptime"`
++	State      string `json:"state"`
++}
+diff --git a/src/frr-interop.go b/src/frr-interop.go
+deleted file mode 100644
+index 6db5705..0000000
+--- a/src/frr-interop.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package main
+-
+-type BGPStatus struct {
+-	IPv4Unicast struct {
+-		PeerCount int `json:"peerCount"`
+-		Peers     map[string]struct {
+-			Hostname   string `json:"hostname,omitempty"`
+-			RemoteAS   int    `json:"remoteAs"`
+-			LocalAS    int    `json:"localAs"`
+-			Version    int    `json:"version"`
+-			PeerUptime string `json:"peerUptime"`
+-			State      string `json:"state"`
+-		} `json:"peers"`
+-	} `json:"ipv4Unicast"`
+-}
+diff --git a/src/main.go b/src/main.go
+index 073c9b5..6beab0b 100644
+--- a/src/main.go
++++ b/src/main.go
+@@ -2,6 +2,7 @@ package main
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+@@ -9,6 +10,7 @@ import (
+ 	"os/exec"
+ 
+ 	"github.com/compose-spec/compose-go/v2/cli"
++	"github.com/compose-spec/compose-go/v2/types"
+ )
+ 
+ const composeFile = "docker-compose.yml"
+@@ -51,6 +53,10 @@ func Run(cfg *CliArgs) error {
+ 		handleList()
+ 	}
+ 
++	if *cfg.BgpSum != "" {
++		handleBgpSummary(*cfg.BgpSum)
++	}
++
+ 	if *cfg.Start {
+ 		handleStart(defaultProfile)
+ 	}
+@@ -71,28 +77,32 @@ func getDockerVersion() (string, error) {
+ 	return string(output), nil
+ }
+ 
+-func handleList() {
++func handleStart(profile string) {
++	cmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", profile, "up", "--build", "--quiet-build", "-d")
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		log.Fatalf("docker compose up failed: %v", err)
++	}
++	log.Println("Services started successfully!")
++}
+ 
+-	ctx := context.Background()
++func handleStop() {
++	cmd := exec.Command("docker", "compose", "-p", projectName, "down")
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
+ 
+-	options, err := cli.NewProjectOptions(
+-		[]string{composeFile},
+-		cli.WithWorkingDirectory("."),
+-		cli.WithOsEnv,
+-		cli.WithDotEnv,
+-		cli.WithName("test"),
+-		cli.WithProfiles([]string{"*"}),
+-	)
+-	if err != nil {
+-		log.Fatal(err)
++	if err := cmd.Run(); err != nil {
++		log.Fatalf("docker compose down failed: %v", err)
+ 	}
+ 
+-	project, err := options.LoadProject(ctx)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
++	log.Println("Services stopped successfully!")
++}
+ 
+-	for _, service := range project.Services {
++// Todo: Remove hardcoded labels
++func handleList() {
++
++	for _, service := range getProject().Services {
+ 		if _, ok := service.Labels["horse.patchwork.netemu.router"]; !ok {
+ 			continue
+ 		}
+@@ -108,29 +118,71 @@ func handleList() {
+ 		for netName, net := range service.Networks {
+ 			fmt.Printf("    %s -> %s\n", net.InterfaceName, netName)
+ 		}
++	}
++}
++
++func handleBgpSummary(routerName string) {
+ 
++	routerCmd := "sho ip bgp summary json"
++	args := []string{"exec", routerName, "vtysh", "-c", routerCmd}
++	cmd := exec.Command("docker", args...)
++
++	output, err := cmd.Output()
++	if err != nil {
++		log.Fatalf("Failed to execute BGP summary commands: %v", err)
+ 	}
+ 
++	var summary BGPSummary
++
++	json.Unmarshal(output, &summary)
++
++	fmt.Printf("🏘️  BGP Peering summary for %s:\n", routerName)
++	fmt.Printf("%d peers found\n", summary.IPv4Unicast.PeerCount)
++
++	for peerName, peer := range summary.IPv4Unicast.Peers {
++		fmt.Printf("  Peer: %s | %s | %d\n", peerName, peer.Hostname, peer.RemoteAS)
++		fmt.Printf("    Local AS: %d\n", peer.LocalAS)
++		fmt.Printf("    Peer Uptime: %s\n", peer.PeerUptime)
++
++		// Todo: Just switch for the status bubble, move to helper
++		switch peer.State {
++		case "Established":
++			fmt.Printf("    State: %s 🟢\n", peer.State)
++		case "Active":
++			fmt.Printf("    State: %s 🔵\n", peer.State)
++		case "Idle":
++			fmt.Printf("    State: %s 🔴", peer.State)
++		}
++	}
+ }
+ 
+-func handleStart(profile string) {
+-	cmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", profile, "up", "--build", "--quiet-build", "-d")
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+-	if err := cmd.Run(); err != nil {
+-		log.Fatalf("docker compose up failed: %v", err)
++func resolveServiceByName(serviceName string) (types.ServiceConfig, bool) {
++
++	if service, ok := getProject().Services[serviceName]; ok {
++		return service, true
+ 	}
+-	log.Println("Services started successfully!")
++	return types.ServiceConfig{}, false
+ }
+ 
+-func handleStop() {
+-	cmd := exec.Command("docker", "compose", "-p", projectName, "down")
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
++func getProject() *types.Project {
++	ctx := context.Background()
+ 
+-	if err := cmd.Run(); err != nil {
+-		log.Fatalf("docker compose down failed: %v", err)
++	options, err := cli.NewProjectOptions(
++		[]string{composeFile},
++		cli.WithWorkingDirectory("."),
++		cli.WithOsEnv,
++		cli.WithDotEnv,
++		cli.WithName("test"),
++		cli.WithProfiles([]string{"*"}),
++	)
++	if err != nil {
++		log.Fatal(err)
+ 	}
+ 
+-	log.Println("Services stopped successfully!")
++	project, err := options.LoadProject(ctx)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	return project
+ }

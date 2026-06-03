@@ -1,4 +1,4 @@
-module netemu
+module transitlab
 
 go 1.25.0
 

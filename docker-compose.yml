@@ -1,5 +1,0 @@
-include: 
-  - router-templates.yml
-  - AS-65222-SLT.yml
-  - AS-65801-AGT.yml
-  - AS-65500-CNX.yml

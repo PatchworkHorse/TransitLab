@@ -1,4 +1,4 @@
-module netemu-ui
+module transitlab-ui
 
 go 1.25.0
 

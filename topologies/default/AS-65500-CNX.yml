@@ -1,0 +1,27 @@
+# Core Nexus Exchange
+# AS-65500
+# 198.51.100.0/23 | 2001:db8:0:00::/64
+
+networks:
+  fabric_nyc_ix_1:
+    driver: ${NETWORK_DRIVER:-macvlan}
+    internal: ${NETWORK_INTERNAL:-true}
+    labels:
+      type: ix_fabric
+      notes: Core Nexus Exchange Fabric NYC
+
+services:
+  cnx-nyc-rs-01:
+    extends:
+      file: router-templates.yml
+      service: router-base
+    profiles: ["as-65500", "agt-as", "all-isps"]
+    hostname: cnx-nyc-rs-01
+    container_name: cnx-nyc-rs-01
+    environment:
+      - ISP_NAME=Core Nexus Exchange
+      - ASN=65500
+      - ROUTER_TYPE=route-server
+    networks:
+      fabric_nyc_ix_1:
+        interface_name: eth0

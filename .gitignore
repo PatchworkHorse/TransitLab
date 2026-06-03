@@ -1,0 +1,15 @@
+# Ignore generated Go binaries
+/netemu
+/transitlab
+/transitsim
+/src/netemu
+/src/transitlab
+/src/transitsim
+/src/netemu-ui/netemu-ui
+
+# Common cross-platform build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
