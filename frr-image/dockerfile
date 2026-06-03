@@ -1,18 +1,28 @@
 # Get our base image
-FROM ubuntu:latest
+FROM ubuntu:24.04
 
-# Install core tools 
-RUN apt-get update
-RUN apt-get install -y curl gnupg2 lsb-release nano iputils-ping mtr net-tools tcpdump netcat-traditional
+# Install core tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg2 \
+    lsb-release \
+    nano \
+    iputils-ping \
+    mtr \
+    net-tools \
+    tcpdump \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
 
-# Add keys 
-RUN curl -s https://deb.frrouting.org/frr/keys.asc | apt-key add -
+# Add FRR signing key and repository
+RUN curl -fsSL https://deb.frrouting.org/frr/keys.asc | gpg --dearmor -o /usr/share/keyrings/frrouting-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/frrouting-archive-keyring.gpg] https://deb.frrouting.org/frr $(lsb_release -s -c) frr-8" > /etc/apt/sources.list.d/frr.list
 
-# Add the repository
-RUN echo deb https://deb.frrouting.org/frr $(lsb_release -s -c) frr-8 | tee -a /etc/apt/sources.list.d/frr
-
-# Install FRR
-RUN apt-get install -y frr frr-pythontools
+# Install FRR packages
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends frr frr-pythontools \
+    && rm -rf /var/lib/apt/lists/*
 
 # FRR owns it's log files
 RUN chown frr:frr /var/log/frr -R
