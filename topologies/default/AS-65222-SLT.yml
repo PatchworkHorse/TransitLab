@@ -1,0 +1,50 @@
+# StrataLink Telecom
+# AS-65222
+# 172.40.64.0/20 | 2001:db8:beef::/40
+
+# MHT lo: 172.40.64.0/28
+# MHT P2P: 172.40.64.16/27
+# Customers: 172.40.65.0/23
+
+networks:
+  bh_slt-mht-bdr-01__slt-mht-cor-01:
+    driver: ${NETWORK_DRIVER:-macvlan}
+    internal: ${NETWORK_INTERNAL:-true}
+    labels:
+      type: "backhaul"
+      notes: Internal link to SLT Core
+
+services:
+  slt-mht-bdr-01:
+    extends:
+      file: ../../router-templates.yml
+      service: router-base
+    profiles: ["as-65222", "slt-as", "all-isps"]
+    hostname: slt-mht-bdr-01
+    container_name: slt-mht-bdr-01
+    environment:
+      - ISP_NAME=StrataLink
+      - ASN=65222
+      - ROUTER_TYPE=border
+    networks:
+      # Peering to Axiom Global Transit (BOS <-> MHT)
+      bh_atg-bos-bdr-01__slt-mht-bdr-01:
+        interface_name: eth0
+      # Internal link to SLT Core
+      bh_slt-mht-bdr-01__slt-mht-cor-01:
+        interface_name: eth1
+
+  slt-mht-cor-01:
+    extends:
+      file: ../../router-templates.yml
+      service: router-base
+    profiles: ["as-65222", "slt-as", "all-isps"]
+    hostname: slt-mht-cor-01
+    container_name: slt-mht-cor-01
+    environment:
+      - ISP_NAME=StrataLink
+      - ASN=65222
+      - ROUTER_TYPE=interior
+    networks:
+      bh_slt-mht-bdr-01__slt-mht-cor-01:
+        interface_name: eth0

@@ -1,6 +1,6 @@
-## 🌐 Docker Internet Emulator
+## 🌐 TransitLab
 
-> 🚧 *This project is very much a work in progress. This README may lag behind a bit.  
+> 🚧 \*This project is very much a work in progress. This README may lag behind a bit.  
 > Feel free to contact with questions.
 
 Inter-domain routing emulation with FRR, Docker Compose, and macvlan networks.
@@ -11,18 +11,17 @@ Inter-domain routing emulation with FRR, Docker Compose, and macvlan networks.
 - **Reusable FRR image** – border and interior routers share an Ubuntu + FRR 8 base image with helper entrypoints.
 - **Deterministic interfaces** – macvlan networks and explicit `interface_name` assignments keep link naming consistent across runs.
 
-
 ### ⚠️ Limitations & Security
+
 - **Linux only** – Requires Docker Engine with Compose V2 on a Linux host due to macvlan networking.
 - **Not for production** – This is a learning and experimentation tool, not a production-grade system.
-- **Added capabilities** – Containers run with `CAP_NET_ADMIN` and `CAP_NET_RAW` to manipulate networking. 
-
+- **Added capabilities** – Containers run with `CAP_NET_ADMIN` and `CAP_NET_RAW` to manipulate networking.
 
 ### 📋 Overview
 
 This project aims to emulate the Internet (or at least, a handful of ISPs, transit providers, CDNs, etc) using FRRouting within Docker containers. In that way, we're running "real" routing software (BGP, OSPF) without the need for specialized hardware or awkward network simulators.
 
-Each Autonomous System is defined within its own Compose file. Border routers, core routers, servers, etc, are all grouped together. Each AS compose file extends shared templates. 
+Each Autonomous System is defined within its own Compose file. Border routers, core routers, servers, etc, are all grouped together. Each AS compose file extends shared templates.
 
 ### 🤖 Current Autonomous Systems
 
@@ -54,24 +53,39 @@ Core Nexus Exchange is a neutral IX based in New York City. They provide a neutr
   - Transit Subnets:
     - IPv4 100.100.101.0/30
 
-
 ### 🧩 Compose building blocks
+
+The repository now supports both:
+
+- A root/default compose (`docker-compose.yml`) for backwards compatibility.
+- Per-topology compose bundles in `topologies/<name>/`.
 
 ```
 docker-compose.yml
 ├─ router-templates.yml        # Canonical definitions for border/interior routers
 ├─ AS-65222-SLT.yml            # StrataLink Telecom (AS65222) topology (border + core)
 └─ AS-65801-AGT.yml            # Axiom Global Transit (AS65801) topology (border)
+
+topologies/
+└─ default/
+   ├─ docker-compose.yml        # Topology entrypoint for this lab
+   ├─ AS-65222-SLT.yml          # Topology-local AS compose fragments
+   ├─ AS-65801-AGT.yml
+   ├─ AS-65500-CNX.yml
+   └─ scripts/
+      ├─ entrypoint-router.sh
+      ├─ daemons-template-*
+      └─ frr-*.conf
 ```
 
 - `router-templates.yml` declares template services for `border-router` and `interior-router`. Both mount the `scripts/` directory read-only and start via role-specific entrypoints.
 - Each AS file supplies hostnames, container names, environment variables, and binds docker networks to `eth0`/`eth1` as needed.
 - Compose profiles (`all-isps`, `slt-as`, `agt-as`) let you launch the full lab or focus on a single autonomous system.
 
-
 ### 🚀 Getting started
 
 #### Codespaces (https://github.com/codespaces)
+
 1. Click the green "Code" button and select "Open with Codespaces" to create a new codespace.
 2. Once the codespace is ready, it will automatically build and bring up the full topology.
 3. You'll be dropped into vtysh on one of the routers to start exploring!
@@ -96,6 +110,37 @@ docker-compose.yml
    ```bash
    docker compose --profile all-isps down
    ```
+
+#### Using topology folders with `transitlab`
+
+The `transitlab` CLI accepts an optional topology name via `-topology`.
+
+- Run the root/default compose (existing behavior):
+  ```bash
+  ./transitlab -start
+  ```
+- Run a named topology under `topologies/<name>/docker-compose.yml`:
+  ```bash
+  ./transitlab -topology default -start
+  ./transitlab -topology default -list
+  ./transitlab -topology default -stop
+  ```
+
+When `-topology` is used, a unique Docker Compose project name is generated so different topologies can coexist without sharing one Compose project namespace.
+
+#### Building the CLI binary
+
+Use the root `Makefile` to build the `transitlab` binary into the repository root (so you do not need to move it manually):
+
+```bash
+make build
+```
+
+Useful targets:
+
+- `make build` - builds `src/main.go` into `./transitlab`
+- `make run` - builds then runs `./transitlab`
+- `make clean` - removes `./transitlab`
 
 ### 🔧 Router bootstrap sequence
 
@@ -131,7 +176,8 @@ Sample BGP output (StrataLink border):
 *> 172.40.64.0/20   0.0.0.0                  0         32768 i
 ```
 
-### 📜 Conventions & Standards 
+### 📜 Conventions & Standards
+
 - Autonomous systems use private ASNs from the 64k-65k range (e.g., 65222, 65801).
 - IPv4 addressing generally uses RFC 1918 space (e.g., 172.40.0.0/20, 100.100.100.0/18). However we've started to bend this to make the topology more interesting and elements more distinct.
 - IPv6 addressing uses documentation prefixes (e.g., 2001:db8::/32).
@@ -139,13 +185,24 @@ Sample BGP output (StrataLink border):
 - Transit subnets between ASNs use /30 for IPv4 and /126 for IPv6 point-to-point links. The subnets are typically provided by the upstream AS.
 
 ### ➕ Adding new Autonomous Systems
+
 To add a new Autonomous System, follow these steps:
-1. **Create a new Compose file** – e.g., `AS-12345-NEW.yml` for the new AS. 
+
+1. **Create a new Compose file** – e.g., `AS-12345-NEW.yml` for the new AS.
 2. **Extend router templates** – Use the `border-router` and `interior-router` templates from `router-templates.yml`. Entrypoints and volume mounts are inherited.
-3. **Define networks and link** - Each point-to-point link should have its own ipvalan network defined in the new AS compose file. Typically, the AS providing the transit subnets will have the networks defined in their compose file. 
+3. **Define networks and link** - Each point-to-point link should have its own ipvalan network defined in the new AS compose file. Typically, the AS providing the transit subnets will have the networks defined in their compose file.
 4. **Connect Interfaces** - Under the service definition for each router, connect the appropriate networks to `eth0`, `eth1`, using `interface_name` to ensure deterministic naming.
 5. **Create a FRR config** – Add a corresponding `frr-<hostname>.conf` file in the `scripts/` directory with the necessary BGP/OSPF configuration for each router. IP addresses are assigned within the config file, not by Docker.
 6. **Update the main compose file** – Add the new AS compose file to `docker-compose.yml` and create a new profile if desired.
+
+### 🧱 Adding a new topology
+
+1. **Create a topology directory** – Create `topologies/<name>/`.
+2. **Create topology compose entrypoint** – Add `topologies/<name>/docker-compose.yml` that includes your AS fragments in that folder.
+3. **Add AS compose fragments** – Keep AS files near the topology entrypoint.
+4. **Add topology-local scripts/conf** – Place router startup scripts, daemons templates, and `frr-<hostname>.conf` files in `topologies/<name>/scripts/`.
+5. **Reuse shared templates** – In AS files, reference `../../router-templates.yml` in `extends.file`.
+6. **Run with topology flag** – Use `./transitlab -topology <name> -start`.
 
 ### 🐞 Troubleshooting tips
 

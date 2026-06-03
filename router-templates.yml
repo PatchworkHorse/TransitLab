@@ -1,7 +1,7 @@
 services:
   router-base:
     labels:
-      - "horse.patchwork.netemu.router"
+      - "horse.patchwork.transitlab.router"
     profiles: ["template"] # This service should never run
     build:
       context: ./frr-image

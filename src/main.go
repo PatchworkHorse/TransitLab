@@ -7,13 +7,16 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/cli"
 )
 
-const composeFile = "docker-compose.yml"
+const rootComposeFile = "docker-compose.yml"
 const defaultProfile = "all-isps"
-const projectName = "internetemulator"
+const projectName = "transitlab"
 
 func main() {
 
@@ -47,16 +50,19 @@ func Run(cfg *CliArgs) error {
 		return fmt.Errorf("Only one state-modifying command may specified")
 	}
 
+	composeFile := resolveComposeFile(*cfg.Topology)
+	project := resolveProjectName(*cfg.Topology)
+
 	if *cfg.List {
-		handleList()
+		handleList(composeFile)
 	}
 
 	if *cfg.Start {
-		handleStart(defaultProfile)
+		handleStart(composeFile, project, defaultProfile)
 	}
 
 	if *cfg.Stop {
-		handleStop()
+		handleStop(composeFile, project)
 	}
 
 	return nil
@@ -71,13 +77,41 @@ func getDockerVersion() (string, error) {
 	return string(output), nil
 }
 
-func handleList() {
+func resolveComposeFile(topology string) string {
+	topology = strings.TrimSpace(topology)
+	if topology == "" {
+		return rootComposeFile
+	}
+
+	return filepath.Join("topologies", topology, "docker-compose.yml")
+}
+
+func resolveProjectName(topology string) string {
+	topology = strings.TrimSpace(topology)
+	if topology == "" {
+		return projectName
+	}
+
+	clean := regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(strings.ToLower(topology), "-")
+	clean = strings.Trim(clean, "-")
+	if clean == "" {
+		clean = "default"
+	}
+
+	return fmt.Sprintf("%s-%s", projectName, clean)
+}
+
+func handleList(composeFile string) {
 
 	ctx := context.Background()
+	workingDir := filepath.Dir(composeFile)
+	if workingDir == "." || workingDir == "" {
+		workingDir = "."
+	}
 
 	options, err := cli.NewProjectOptions(
 		[]string{composeFile},
-		cli.WithWorkingDirectory("."),
+		cli.WithWorkingDirectory(workingDir),
 		cli.WithOsEnv,
 		cli.WithDotEnv,
 		cli.WithName("test"),
@@ -93,13 +127,13 @@ func handleList() {
 	}
 
 	for _, service := range project.Services {
-		if _, ok := service.Labels["horse.patchwork.netemu.router"]; !ok {
+		if _, ok := service.Labels["horse.patchwork.transitlab.router"]; !ok {
 			continue
 		}
 
 		fmt.Printf("Service: %s, Profiles: %v\n", service.Name, service.Profiles)
 
-		if _, ok := service.Labels["horse.patchwork.netemu.template"]; ok {
+		if _, ok := service.Labels["horse.patchwork.transitlab.template"]; ok {
 			continue
 		}
 
@@ -113,8 +147,8 @@ func handleList() {
 
 }
 
-func handleStart(profile string) {
-	cmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", profile, "up", "--build", "--quiet-build", "-d")
+func handleStart(composeFile string, project string, profile string) {
+	cmd := exec.Command("docker", "compose", "-f", composeFile, "-p", project, "--profile", profile, "up", "--build", "--quiet-build", "-d")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -123,8 +157,8 @@ func handleStart(profile string) {
 	log.Println("Services started successfully!")
 }
 
-func handleStop() {
-	cmd := exec.Command("docker", "compose", "-p", projectName, "down")
+func handleStop(composeFile string, project string) {
+	cmd := exec.Command("docker", "compose", "-f", composeFile, "-p", project, "down")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
