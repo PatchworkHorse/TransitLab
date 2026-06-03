@@ -8,4 +8,4 @@ echo '🚀 Starting the default topology...'
 echo '⏳ Topology started. BGP and routing state may take a minute to converge.'
 
 echo "🔌 Connecting to ${ROUTER_LABEL}..."
-docker exec -it "${ROUTER_CONTAINER_NAME}" bash -c "echo ''; echo '🔌 Connected to ${ROUTER_LABEL}.'; echo '🧭 Starting vtysh...'; echo '🧪 Try running `show ip route`!'; echo ''; vtysh"
+docker exec -it "${ROUTER_CONTAINER_NAME}" bash -c "echo ''; echo '🔌 Connected to ${ROUTER_LABEL}.'; echo '🧭 Starting vtysh...'; echo '🧪 Try running \`show ip route\`!'; echo ''; vtysh"
