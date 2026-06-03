@@ -1,18 +1,11 @@
 #!/bin/bash
 
-#       ,--,
-#      ()   \ 
-#       /    \
-#     _/______\_
-#    (__________)
-#     /  /  \  \
-#    /  /    \  \
-#    `"`      `"`
+ROUTER_CONTAINER_NAME='atg-nyc-bdr-01'
+ROUTER_LABEL='ATG NYC BDR-01'
 
 echo '🚀 Starting the default topology...'
 ./transitlab -start
-echo '⏳ The lab is starting now. BGP sessions and other routing state may take a minute to come up.'
+echo '⏳ Topology started. BGP and routing state may take a minute to converge.'
 
-echo '🔌 Connecting to the ATG BOS BDR-01 router...'
-echo '🧭 Opening vtysh so you can inspect the running topology.'
-docker exec -it atg-bos-bdr-01 bash -c "echo ''; echo '🔌 Connected to ATG BOS BDR-01.'; echo '🧭 Starting vtysh...'; echo ''; vtysh"
+echo "🔌 Connecting to ${ROUTER_LABEL}..."
+docker exec -it "${ROUTER_CONTAINER_NAME}" bash -c "echo ''; echo '🔌 Connected to ${ROUTER_LABEL}.'; echo '🧭 Starting vtysh...'; echo '🧪 Try running \\`show ip route\\`!'; echo ''; vtysh"
