@@ -105,17 +105,17 @@ When `-topology` is used, a unique Docker Compose project name is generated so d
 
 #### Building the CLI binary
 
-Use the root `Makefile` to build the `transitlab` binary into the repository root (so you do not need to move it manually):
+Use the root `justfile` to build the `transitlab` binary into the repository root (so you do not need to move it manually):
 
 ```bash
-make build
+just build
 ```
 
-Useful targets:
+Useful recipes:
 
-- `make build` - builds `src/main.go` into `./transitlab`
-- `make run` - builds then runs `./transitlab`
-- `make clean` - removes `./transitlab`
+- `just build` - builds `src/main.go` into `./transitlab`
+- `just run` - builds then runs `./transitlab`
+- `just clean` - removes `./transitlab`
 
 ### 🔧 Router bootstrap sequence
 
