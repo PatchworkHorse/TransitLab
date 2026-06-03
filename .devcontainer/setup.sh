@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# Start all ISPs
-docker compose --profile all-isps up -d > /dev/null 2>&1
+echo '🏗️ Building TransitLab...'
+make build
 
-# Connect to a router for the user to see something happening
-docker exec -it atg-bos-bdr-01 bash -c "echo ''; echo '🚀 Connecting to ATG BOS BDR-01 Router!'; echo ''; vtysh"
+echo '🚀 Starting the default topology...'
+./transitlab -start
+echo '⏳ The lab is starting now. BGP sessions and other routing state may take a minute to come up.'
+
+echo '🔌 Connecting to the ATG BOS BDR-01 router...'
+echo '🧭 Opening vtysh so you can inspect the running topology.'
+docker exec -it atg-bos-bdr-01 bash -c "echo ''; echo '🔌 Connected to ATG BOS BDR-01.'; echo '🧭 Starting vtysh...'; echo ''; vtysh"
