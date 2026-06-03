@@ -14,7 +14,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/cli"
 )
 
-const rootComposeFile = "docker-compose.yml"
+const rootComposeFile = "topologies/default/docker-compose.yml"
 const defaultProfile = "all-isps"
 const projectName = "transitlab"
 
@@ -22,6 +22,11 @@ func main() {
 
 	cfg := SetupFlags()
 	flag.Parse()
+
+	if len(os.Args) == 1 {
+		flag.Usage()
+		return
+	}
 
 	if err := Run(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -62,7 +67,7 @@ func Run(cfg *CliArgs) error {
 	}
 
 	if *cfg.Stop {
-		handleStop(composeFile, project)
+		handleStop(composeFile, project, strings.TrimSpace(*cfg.Topology) == "")
 	}
 
 	return nil
@@ -78,12 +83,35 @@ func getDockerVersion() (string, error) {
 }
 
 func resolveComposeFile(topology string) string {
+	composeRelPath := rootComposeFile
 	topology = strings.TrimSpace(topology)
-	if topology == "" {
-		return rootComposeFile
+	if topology != "" {
+		composeRelPath = filepath.Join("topologies", topology, "docker-compose.yml")
 	}
 
-	return filepath.Join("topologies", topology, "docker-compose.yml")
+	return findFileUpward(composeRelPath)
+}
+
+func findFileUpward(relativePath string) string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return relativePath
+	}
+
+	for {
+		candidate := filepath.Join(wd, relativePath)
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			return candidate
+		}
+
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			break
+		}
+		wd = parent
+	}
+
+	return relativePath
 }
 
 func resolveProjectName(topology string) string {
@@ -157,14 +185,61 @@ func handleStart(composeFile string, project string, profile string) {
 	log.Println("Services started successfully!")
 }
 
-func handleStop(composeFile string, project string) {
-	cmd := exec.Command("docker", "compose", "-f", composeFile, "-p", project, "down")
+func handleStop(composeFile string, project string, includeFallbackProjects bool) {
+	projects := []string{project}
+	if includeFallbackProjects {
+		projects = append(projects, resolveProjectName("default"), "internetemulator")
+	}
+
+	seen := map[string]bool{}
+	for _, candidate := range projects {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" || seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+
+		cmd := exec.Command("docker", "compose", "-f", composeFile, "-p", candidate, "--profile", defaultProfile, "down", "--remove-orphans")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Printf("docker compose down failed for project %q: %v", candidate, err)
+		}
+	}
+
+	// Also run an implicit-project down for cases where users launched compose manually from topology dir.
+	cmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", defaultProfile, "down", "--remove-orphans")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("docker compose down failed: %v", err)
 	}
 
+	if err := forceStopTransitlabContainers(); err != nil {
+		log.Fatalf("failed to force-stop running transitlab containers: %v", err)
+	}
+
 	log.Println("Services stopped successfully!")
+}
+
+func forceStopTransitlabContainers() error {
+	label := "horse.patchwork.transitlab.router"
+	list := exec.Command("docker", "ps", "-aq", "--filter", "label="+label)
+	out, err := list.Output()
+	if err != nil {
+		return err
+	}
+
+	ids := strings.Fields(strings.TrimSpace(string(out)))
+	if len(ids) == 0 {
+		return nil
+	}
+
+	args := []string{"rm", "-f"}
+	args = append(args, ids...)
+	rm := exec.Command("docker", args...)
+	rm.Stdout = os.Stdout
+	rm.Stderr = os.Stderr
+
+	return rm.Run()
 }

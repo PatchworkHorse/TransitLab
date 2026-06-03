@@ -17,7 +17,7 @@ networks:
 services:
   slt-mht-bdr-01:
     extends:
-      file: ../../router-templates.yml
+      file: router-templates.yml
       service: router-base
     profiles: ["as-65222", "slt-as", "all-isps"]
     hostname: slt-mht-bdr-01
@@ -36,7 +36,7 @@ services:
 
   slt-mht-cor-01:
     extends:
-      file: ../../router-templates.yml
+      file: router-templates.yml
       service: router-base
     profiles: ["as-65222", "slt-as", "all-isps"]
     hostname: slt-mht-cor-01

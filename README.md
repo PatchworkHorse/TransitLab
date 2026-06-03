@@ -25,60 +25,33 @@ Each Autonomous System is defined within its own Compose file. Border routers, c
 
 ### 🤖 Current Autonomous Systems
 
-#### StrataLink Telecom – AS65222
-
-- IPv4: 172.40.64.0/20
-- IPv6: 2001:db8:beef::/40
-
-StrataLink Telecom is a regional ISP based in the Northeastern United States servicing residential, business, and wholesale customers. Currently their sole upstream provider is Axiom Global Transit.
-
-#### Axiom Global Transit – AS65801
-
-- IPv4: 100.100.100.0/18
-- IPv6: 2001:db8:101::/36
-
-Axiom Global Transit is a mid-sized Tier 2 transit provider with a global footprint. They peer with several Tier 1 networks and operate multiple data centers worldwide.
-
-#### Core Nexus Exchange – AS65500
-
-- IPv4: 198.51.100.0/23
-- IPv6: 2001:db8:0:00::/64
-
-Core Nexus Exchange is a neutral IX based in New York City. They provide a neutral switch fabric for participating networks to interconnect either bilaterally or multilateral via IX operated route servers.
+See `topologies/default/README.md` for the full list of ASes and details for the default topology.
 
 ### 🤝 Current Peering Arrangements & Upstreams
 
-- **StrataLink Telecom (AS65222)** <--> **Axiom Global Transit (AS65801)**
-  - Upstream transit relationship
-  - Transit Subnets:
-    - IPv4 100.100.101.0/30
+See `topologies/default/README.md` for current peering and upstream details for the default topology.
 
 ### 🧩 Compose building blocks
 
-The repository now supports both:
-
-- A root/default compose (`docker-compose.yml`) for backwards compatibility.
-- Per-topology compose bundles in `topologies/<name>/`.
+The repository organizes compose bundles by topology under `topologies/<name>/`.
 
 ```
-docker-compose.yml
-├─ router-templates.yml        # Canonical definitions for border/interior routers
-├─ AS-65222-SLT.yml            # StrataLink Telecom (AS65222) topology (border + core)
-└─ AS-65801-AGT.yml            # Axiom Global Transit (AS65801) topology (border)
-
 topologies/
 └─ default/
-   ├─ docker-compose.yml        # Topology entrypoint for this lab
-   ├─ AS-65222-SLT.yml          # Topology-local AS compose fragments
-   ├─ AS-65801-AGT.yml
-   ├─ AS-65500-CNX.yml
-   └─ scripts/
+  ├─ README.md                 # Topology-specific notes and AS inventory
+  ├─ docker-compose.yml        # Topology entrypoint for this lab
+  ├─ router-templates.yml      # Canonical definitions for border/interior routers
+  ├─ customer-templates.yml    # Optional customer-edge templates
+  ├─ AS-65222-SLT.yml          # Topology-local AS compose fragments
+  ├─ AS-65801-AGT.yml
+  ├─ AS-65500-CNX.yml
+  └─ scripts/
       ├─ entrypoint-router.sh
       ├─ daemons-template-*
       └─ frr-*.conf
 ```
 
-- `router-templates.yml` declares template services for `border-router` and `interior-router`. Both mount the `scripts/` directory read-only and start via role-specific entrypoints.
+- `topologies/default/router-templates.yml` declares template services for `border-router` and `interior-router`. Both mount the `scripts/` directory read-only and start via role-specific entrypoints.
 - Each AS file supplies hostnames, container names, environment variables, and binds docker networks to `eth0`/`eth1` as needed.
 - Compose profiles (`all-isps`, `slt-as`, `agt-as`) let you launch the full lab or focus on a single autonomous system.
 
@@ -91,6 +64,8 @@ topologies/
 3. You'll be dropped into vtysh on one of the routers to start exploring!
 
 #### Local setup
+
+**Note:** The following instructions are evolving, some of this documentation may lag behind the latest changes.
 
 1. **Prerequisites** – Docker Engine with the Compose V2 plugin on Linux.
 2. **Build and launch everything**
@@ -115,7 +90,7 @@ topologies/
 
 The `transitlab` CLI accepts an optional topology name via `-topology`.
 
-- Run the root/default compose (existing behavior):
+- Run the default topology compose (when `-topology` is omitted):
   ```bash
   ./transitlab -start
   ```
@@ -189,11 +164,11 @@ Sample BGP output (StrataLink border):
 To add a new Autonomous System, follow these steps:
 
 1. **Create a new Compose file** – e.g., `AS-12345-NEW.yml` for the new AS.
-2. **Extend router templates** – Use the `border-router` and `interior-router` templates from `router-templates.yml`. Entrypoints and volume mounts are inherited.
+2. **Extend router templates** – Use the `border-router` and `interior-router` templates from your topology's `router-templates.yml`. Entrypoints and volume mounts are inherited.
 3. **Define networks and link** - Each point-to-point link should have its own ipvalan network defined in the new AS compose file. Typically, the AS providing the transit subnets will have the networks defined in their compose file.
 4. **Connect Interfaces** - Under the service definition for each router, connect the appropriate networks to `eth0`, `eth1`, using `interface_name` to ensure deterministic naming.
 5. **Create a FRR config** – Add a corresponding `frr-<hostname>.conf` file in the `scripts/` directory with the necessary BGP/OSPF configuration for each router. IP addresses are assigned within the config file, not by Docker.
-6. **Update the main compose file** – Add the new AS compose file to `docker-compose.yml` and create a new profile if desired.
+6. **Update the topology compose file** – Add the new AS compose file to `topologies/<name>/docker-compose.yml` and create a new profile if desired.
 
 ### 🧱 Adding a new topology
 
@@ -201,7 +176,7 @@ To add a new Autonomous System, follow these steps:
 2. **Create topology compose entrypoint** – Add `topologies/<name>/docker-compose.yml` that includes your AS fragments in that folder.
 3. **Add AS compose fragments** – Keep AS files near the topology entrypoint.
 4. **Add topology-local scripts/conf** – Place router startup scripts, daemons templates, and `frr-<hostname>.conf` files in `topologies/<name>/scripts/`.
-5. **Reuse shared templates** – In AS files, reference `../../router-templates.yml` in `extends.file`.
+5. **Reuse shared templates** – In AS files, reference `router-templates.yml` (or another topology-local template file) in `extends.file`.
 6. **Run with topology flag** – Use `./transitlab -topology <name> -start`.
 
 ### 🐞 Troubleshooting tips
@@ -214,7 +189,7 @@ To add a new Autonomous System, follow these steps:
 ### 🧭 Next steps
 
 - Add IPv6 advertisements (`2001:db8:beef::/40`, `2001:db8:101::/36`).
-- Use `customer-templates.yml` as a starting point for customer edge routers.
+- Use `topologies/default/customer-templates.yml` as a starting point for customer edge routers.
 - Layer on telemetry or alerting (e.g., [BGPalerter](https://github.com/nttgin/BGPalerter)).
 - Introduce service nodes (DNS, web) behind StrataLink to test policy routing.
 - Experiment with route filtering, prepending, and MEDs between the two ASNs.

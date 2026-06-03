@@ -1,6 +1,0 @@
-services: 
-  isp-customer:
-    profiles: ["template"] # This service should never run
-    build:
-      context: ./frr-image
-      dockerfile: dockerfile

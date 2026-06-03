@@ -13,7 +13,7 @@ networks:
 services:
   cnx-nyc-rs-01:
     extends:
-      file: ../../router-templates.yml
+      file: router-templates.yml
       service: router-base
     profiles: ["as-65500", "agt-as", "all-isps"]
     hostname: cnx-nyc-rs-01

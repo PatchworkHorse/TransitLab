@@ -26,7 +26,7 @@ networks:
 services:
   atg-bos-bdr-01:
     extends:
-      file: ../../router-templates.yml
+      file: router-templates.yml
       service: router-base
     profiles: ["as-65801", "agt-as", "all-isps"]
     hostname: atg-bos-bdr-01
@@ -43,7 +43,7 @@ services:
 
   atg-nyc-bdr-01:
     extends:
-      file: ../../router-templates.yml
+      file: router-templates.yml
       service: router-base
     profiles: ["as-65801", "agt-as", "all-isps"]
     hostname: atg-nyc-bdr-01
