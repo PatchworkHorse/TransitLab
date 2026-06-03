@@ -15,8 +15,7 @@
     "NETWORK_DRIVER": "bridge",
     "NETWORK_INTERNAL": "false"
   },
-  "postCreateCommand": "docker compose version",
-  "postStartCommand": "docker compose --profile all-isps up -d",
+  "postCreateCommand": "make build",
   "postAttachCommand": "bash .devcontainer/setup.sh",
   "customizations": {
     "vscode": {

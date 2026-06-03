@@ -1,7 +1,13 @@
 #!/bin/bash
 
-echo '🏗️ Building TransitLab...'
-make build
+#       ,--,
+#      ()   \ 
+#       /    \
+#     _/______\_
+#    (__________)
+#     /  /  \  \
+#    /  /    \  \
+#    `"`      `"`
 
 echo '🚀 Starting the default topology...'
 ./transitlab -start
