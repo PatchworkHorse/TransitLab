@@ -2,7 +2,10 @@
   "name": "TransitLab",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:3.0.1": {
       "version": "latest",
       "dockerDashComposeVersion": "v2"
     }
@@ -12,12 +15,12 @@
     "NETWORK_DRIVER": "bridge",
     "NETWORK_INTERNAL": "false"
   },
-  "postCreateCommand": "docker compose version",
-  "postStartCommand": "docker compose --profile all-isps up -d",
+  "postCreateCommand": "bash -lc 'command -v just >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y just); just build'",
   "postAttachCommand": "bash .devcontainer/setup.sh",
   "customizations": {
     "vscode": {
       "extensions": [
+        "golang.Go",
         "ms-azuretools.vscode-docker"
       ],
       "settings": {

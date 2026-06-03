@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Start all ISPs
-docker compose --profile all-isps up -d > /dev/null 2>&1
+ROUTER_CONTAINER_NAME='atg-nyc-bdr-01'
+ROUTER_LABEL='ATG NYC BDR-01'
 
-# Connect to a router for the user to see something happening
-docker exec -it atg-bos-bdr-01 bash -c "echo ''; echo '🚀 Connecting to ATG BOS BDR-01 Router!'; echo ''; vtysh"
+echo '🚀 Starting the default topology...'
+./transitlab -start
+echo '⏳ Topology started. BGP and routing state may take a minute to converge.'
+
+echo "🔌 Connecting to ${ROUTER_LABEL}..."
+docker exec -it "${ROUTER_CONTAINER_NAME}" bash -c "echo ''; echo '🔌 Connected to ${ROUTER_LABEL}.'; echo '🧭 Starting vtysh...'; echo '🧪 Try running \`show ip route\`!'; echo ''; vtysh"
