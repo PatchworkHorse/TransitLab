@@ -1,0 +1,83 @@
+# Patchwork todo: 
+# - Create structs for 
+
+networks:
+  as-65000-internal:
+    driver: ${NETWORK_DRIVER:-macvlan}
+    internal: ${NETWORK_INTERNAL:-true}
+    labels:
+      notes: "AS 65000"
+
+  as-65000-loopbacks:
+    driver: ${NETWORK_DRIVER:-macvlan}
+    internal: ${NETWORK_INTERNAL:-true}
+    labels:
+      notes: "AS 65000 loopbacks"
+
+  reflector-mgmt:
+    driver: bridge
+    labels:
+      notes: "Host-access network for reflector APIs"
+        
+# AS 65000 
+services:
+  as-65000-reflector:
+    container_name: as-65000-reflector
+    hostname: as-65000-reflector
+    build:
+      context: ./server-image
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./config/as-65000-reflector/etc/gobgp:/etc/gobgp
+    environment:
+      - ISP_NAME=AS65000
+      - ASN=65000
+      - IPV4_ADDRESS=10.200.0.2
+    networks:
+      as-65000-internal:
+        interface_name: eth0
+      as-65000-loopbacks:
+        interface_name: lo1
+      reflector-mgmt: {}
+    ports: 
+      - 50051:50051
+
+  as-65000-aggregator:
+    extends:
+      file: ./templates/router-templates.yml
+      service: router-base
+    profiles: [""]
+    hostname: as-65000-aggregator
+    container_name: as-65000-aggregator
+    volumes:
+      - ./config/as-65000-aggregator/etc/frr/:/etc/frr
+    environment:
+      - ISP_NAME=AS65000
+      - ASN=65000
+      - ROUTER_TYPE=interior
+    networks:
+      as-65000-internal:
+        interface_name: eth0
+      as-65000-loopbacks:
+        interface_name: lo1
+
+  as-65000-edge-1:
+    extends:
+      file: ./templates/router-templates.yml
+      service: router-base
+    profiles: [""]
+    hostname: as-65000-edge-1
+    container_name: as-65000-edge-1
+    volumes:
+      - ./config/as-65000-edge-1/etc/frr/:/etc/frr
+    environment:
+      - ISP_NAME=AS65000
+      - ASN=65000
+      - ROUTER_TYPE=interior
+    networks:
+      as-65000-internal:
+        interface_name: eth0
+      as-65000-loopbacks:
+        interface_name: lo1
+        

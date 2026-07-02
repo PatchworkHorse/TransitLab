@@ -1,0 +1,17 @@
+[global.config]
+as = 65000
+router-id = "10.200.0.2"
+
+[[peer-groups]]
+[peer-groups.config]
+peer-group-name = "65000-rr-clients"
+peer-as = 65000
+
+[[peer-groups.afi-safis]]
+[peer-groups.afi-safis.config]
+afi-safi-name = "ipv4-unicast"
+
+[[dynamic-neighbors]]
+[dynamic-neighbors.config]
+prefix = "10.200.0.0/16"
+peer-group = "65000-rr-clients"
