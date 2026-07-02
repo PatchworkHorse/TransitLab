@@ -1,6 +1,7 @@
 ## 🌐 TransitLab
 
-> AI Disclosure: Parts of this README is AI generated. The actual codebase is largely hand-crafted with mild AI assistance for syntax.
+> AI Disclosure: Parts of this README are AI generated. The actual codebase is largely hand-crafted with mild AI assistance for syntax.
+> 
 > 🚧 \*This project is very much a work in progress. This README may lag behind a bit.  
 > Feel free to contact with questions.
 
