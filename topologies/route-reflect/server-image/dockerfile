@@ -1,0 +1,31 @@
+ARG BASE_IMAGE=ubuntu:24.04
+
+FROM ${BASE_IMAGE}
+
+RUN apt-get update \
+    && apt-get install -y ca-certificates \
+    golang-go \
+    git \
+    iproute2 \
+    mtr \
+    iputils-ping \
+    && apt-get upgrade -y
+
+# Get and build GoBGP 
+
+RUN git clone https://github.com/osrg/gobgp \ 
+    && cd gobgp \ 
+    && go build ./cmd/gobgpd \
+    && go build ./cmd/gobgp \ 
+    && mv gobgpd gobgp /usr/local/bin/
+
+RUN useradd -r -s /bin/bash gobgp
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 50051
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+CMD ["sleep", "infinity"]

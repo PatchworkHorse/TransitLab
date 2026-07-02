@@ -1,0 +1,25 @@
+!
+! Zebra configuration saved from vty
+!   2026/06/24 19:07:29
+!
+frr version 8.5.7
+frr defaults traditional
+!
+hostname as-65000-aggregator
+!
+!
+!
+!
+interface eth0
+exit
+!
+interface lo0
+exit
+!
+interface lo1
+exit
+!
+!
+!
+!
+!
